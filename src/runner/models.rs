@@ -37,7 +37,9 @@ pub struct InputResult {
 #[derive(Debug, Serialize, Validate, Deserialize)]
 pub struct Submission {
     #[validate(length(min = 10, message = "code must be greater than 10 chars"))]
-    pub code: String,
+    pub solution_code: String,
+    #[validate(length(min = 10, message = "main_code must be greater than 10 chars"))]
+    pub main_code: String,
     #[validate(nested)]
     pub inputs: Vec<Input>,
     #[validate(custom(function = "validate_supported_lang"))]
