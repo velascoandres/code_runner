@@ -1,12 +1,13 @@
 use crate::runner::errors::ExecutionError;
 
-use super::models::SupportedLangs;
-use super::{commands::get_command, models::Submission};
+use super::langs::{BuildArgs, JavascriptCommand, LangCommand, PythonCommand, RustCommand};
+use super::models::{InputResult, SupportedLangs};
+use super::models::Submission;
 use std::fs;
+use std::fs::File;
 use std::io::Write;
 use std::path::Path;
 use std::process::Command;
-use std::fs::File;
 
 #[derive(Debug)]
 pub struct CodePathInfo {
@@ -14,7 +15,7 @@ pub struct CodePathInfo {
     pub relative_path: String,
     pub solution_filename: String,
     pub main_filename: String,
-    pub extension: String
+    pub extension: String,
 }
 
 impl CodePathInfo {
@@ -48,20 +49,16 @@ impl CodePathInfo {
 }
 
 pub struct Executer {
-    id: String,
     submission: Submission,
 }
 
 impl Executer {
-    pub fn new(id: &str, submission: Submission) -> Self {
-        Self {
-            id: String::from(id),
-            submission,
-        }
+    pub fn new(submission: Submission) -> Self {
+        Self { submission }
     }
 
     pub fn path_info(&self) -> CodePathInfo {
-        let id = self.id.clone();
+        let id = self.submission.id.clone();
 
         CodePathInfo::new(
             &format!("submissions/{id}"),
@@ -69,24 +66,51 @@ impl Executer {
         )
     }
 
-    pub fn execute(&self) -> Result<String, ExecutionError> {
+    pub fn execute(&self) -> Result<Vec<InputResult>, ExecutionError> {
         self.setup_files()?;
 
         let path_info = self.path_info();
-        let command = get_command(
-            self.submission.supported_lang(),
-            &self.id,
-            &path_info.absolute_path,
-        );
 
-        let output = Command::new(command.0).args(command.1).output();
+        let mut results: Vec<InputResult> = vec![];        
 
-        match output {
-            Ok(result) => Ok(String::from_utf8_lossy(&result.stdout).trim().to_string()),
-            Err(err) => Err(ExecutionError::RuntimeError(format!(
-                "Error on execute code: {err}"
-            ))),
+        for input in self.submission.inputs.iter() {
+            let build_args = BuildArgs {
+                id: self.submission.id.clone(),
+                path: path_info.absolute_path.clone(),
+                params: input.args.clone(),
+            };
+    
+            let command = match self.submission.supported_lang() {
+                SupportedLangs::Rust => RustCommand::make_build_command(build_args),
+                SupportedLangs::Javascript => JavascriptCommand::make_build_command(build_args),
+                SupportedLangs::Python => PythonCommand::make_build_command(build_args),
+            };
+    
+            let output = Command::new(command.0).args(command.1).output();
+    
+            match output {
+                Ok(result) => {
+                    if !result.stderr.is_empty() {
+                        results.push(InputResult {
+                            input: input.args.clone(),
+                            output: String::from_utf8_lossy(&result.stderr).trim().to_string(),
+                            expected_result: input.expected_result.clone(),
+                        });
+
+                        continue;
+                    }
+                    results.push(InputResult {
+                        input: input.args.clone(),
+                        output: String::from_utf8_lossy(&result.stdout).trim().to_string(),
+                        expected_result: input.expected_result.clone(),
+                    });
+                }
+                Err(err) => return Err(ExecutionError::ExecutionError(format!(
+                    "Error on execute code: {err}"
+                ))),
+            }
         }
+        Ok(results)
     }
 
     fn setup_files(&self) -> Result<(), ExecutionError> {

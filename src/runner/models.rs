@@ -22,20 +22,28 @@ fn validate_supported_lang(supported_lang: &str) -> Result<(), ValidationError> 
 #[derive(Deserialize, Debug, Serialize, Validate)]
 pub struct Input {
     #[validate(length(min = 1, message = "args must be greater or equal than 1 chars"))]
-    pub args: Vec<String>,
+    pub args: String,
     #[validate(length(min=1))]
-    pub expected_resutl: String
+    pub expected_result: String
 }
 
 #[derive(Deserialize, Debug, Serialize)]
 pub struct InputResult {
-    pub input: Vec<String>,
-    pub result: String,
+    pub input: String,
+    pub output: String,
     pub expected_result: String
+}
+
+#[derive(Deserialize, Debug, Serialize)]
+pub struct Entry {
+    input: String,
+    output: String
 }
 
 #[derive(Debug, Serialize, Validate, Deserialize)]
 pub struct Submission {
+    #[validate(length(min = 5, message = "id must be greater than 5 chars"))]
+    pub id: String,
     #[validate(length(min = 10, message = "code must be greater than 10 chars"))]
     pub solution_code: String,
     #[validate(length(min = 10, message = "main_code must be greater than 10 chars"))]
@@ -56,7 +64,7 @@ impl Submission {
 #[derive(Deserialize, Debug, Serialize)]
 pub struct SubmissionResponse {
     pub is_success: bool,
-    pub output: String,
+    pub message: String,
     pub results: Vec<InputResult>
 }
 
