@@ -4,5 +4,6 @@ use strum_macros::Display;
 pub enum ExecutionError {
     RuntimeError(String),
     ExecutionError(String),
-    ExecutionEnvironmentError(String)
+    ExecutionEnvironmentError(String),
+    CleanUpError(String)
 }

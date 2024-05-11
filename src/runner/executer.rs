@@ -110,6 +110,9 @@ impl Executer {
                 ))),
             }
         }
+
+        self.clean_up()?;
+
         Ok(results)
     }
 
@@ -120,7 +123,7 @@ impl Executer {
         let solution_filename = path_info.solution_filename;
         let main_filename = path_info.main_filename;
 
-        let solution_file_path_str = format!("{relative_path}/{solution_filename}");
+        let solution_file_path_str: String = format!("{relative_path}/{solution_filename}");
         let main_file_path_str = format!("{relative_path}/{main_filename}");
 
         let solution_file_path = Path::new(&solution_file_path_str);
@@ -154,6 +157,17 @@ impl Executer {
             return Err(ExecutionError::ExecutionEnvironmentError(format!(
                 "Error creating solution directory: {err}"
             )));
+        }
+
+        Ok(())
+    }
+
+    fn clean_up(&self) -> Result<(), ExecutionError>{
+        let path_info = self.path_info();
+        let relative_path = path_info.relative_path;
+
+        if let Err(err) = fs::remove_dir_all(Path::new(&relative_path)){
+            return Err(ExecutionError::CleanUpError(format!("{err}")));
         }
 
         Ok(())
