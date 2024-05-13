@@ -1,8 +1,7 @@
 use actix_web::{post, web, HttpResponse, Responder};
 
 use crate::runner::{
-    executer::Executer,
-    models::{Submission, SubmissionResponse},
+    executer::Executer, lang_adapter, models::{Submission, SubmissionResponse}
 };
 use validator::Validate;
 
@@ -16,7 +15,7 @@ pub async fn execute_code(json: web::Json<Submission>) -> impl Responder {
         return HttpResponse::BadRequest().json(error);
     }
 
-    let execution_result = Executer::new(json.into_inner()).execute();
+    let execution_result = Executer::new(json.into_inner()).execute(lang_adapter::JavascriptAdapter);
 
     match execution_result {
         Ok(output) => {

@@ -4,22 +4,22 @@ pub struct BuildArgs {
     pub params: String,
 }
 
-pub trait LangCommand {
-    fn make_build_command(args: BuildArgs) -> (String, Vec<String>);
+pub trait DockerLangCommand {
+    fn make_execute_command(args: BuildArgs) -> (String, Vec<String>);
 }
 
 #[derive(Default)]
-pub struct JavascriptCommand;
+pub struct DockerJavascriptCommand;
 #[derive(Default)]
 
-pub struct RustCommand;
+pub struct DockerRustCommand;
 #[derive(Default)]
 
-pub struct PythonCommand;
+pub struct DockerPythonCommand;
 
 
-impl LangCommand for JavascriptCommand {
-    fn make_build_command(args: BuildArgs) -> (String, Vec<String>) {
+impl DockerLangCommand for DockerJavascriptCommand {
+    fn make_execute_command(args: BuildArgs) -> (String, Vec<String>) {
         let id = args.id;
         let path = args.path;
         let params = args.params;
@@ -53,8 +53,8 @@ impl LangCommand for JavascriptCommand {
     }
 }
 
-impl LangCommand for PythonCommand {
-    fn make_build_command(args: BuildArgs) -> (String, Vec<String>) {
+impl DockerLangCommand for DockerPythonCommand {
+    fn make_execute_command(args: BuildArgs) -> (String, Vec<String>) {
         let id = args.id;
         let path = args.path;
         let params = args.params;
@@ -88,13 +88,13 @@ impl LangCommand for PythonCommand {
     }
 }
 
-impl LangCommand for RustCommand {
-    fn make_build_command(args: BuildArgs) -> (String, Vec<String>) {
+impl DockerLangCommand for DockerRustCommand {
+    fn make_execute_command(args: BuildArgs) -> (String, Vec<String>) {
         let id = args.id;
         let path = args.path;
         let params = args.params;
 
-        let main_js_file = format!("\"node main.js '{params}'\"");
+        let main_file = format!("cargo run --bin main {params}");
         let code_path = format!("{path}:/code");
 
         let args = vec![
@@ -110,10 +110,10 @@ impl LangCommand for RustCommand {
             &code_path,
             "-w",
             "/code",
-            "node:current-alpine3.15",
+            "rust:latest",
             "/bin/sh",
             "-c",
-            &main_js_file,
+            &main_file,
         ]
         .into_iter()
         .map(|arg| arg.to_string())

@@ -1,11 +1,9 @@
 use crate::runner::errors::ExecutionError;
 
-use super::langs::{BuildArgs, JavascriptCommand, LangCommand, PythonCommand, RustCommand};
-use super::models::{InputResult, SupportedLangs};
+use super::lang_adapter::{CodeInfo, LangAdapter};
+use super::langs::{BuildArgs, DockerJavascriptCommand, DockerLangCommand, DockerPythonCommand, DockerRustCommand};
 use super::models::Submission;
-use std::fs;
-use std::fs::File;
-use std::io::Write;
+use super::models::{InputResult, SupportedLangs};
 use std::path::Path;
 use std::process::Command;
 
@@ -66,12 +64,17 @@ impl Executer {
         )
     }
 
-    pub fn execute(&self) -> Result<Vec<InputResult>, ExecutionError> {
-        self.setup_files()?;
-
+    pub fn execute<T: LangAdapter>(&self, lang_adapter: T) -> Result<Vec<InputResult>, ExecutionError> {
         let path_info = self.path_info();
 
-        let mut results: Vec<InputResult> = vec![];        
+        lang_adapter.setup_environment(&path_info, &CodeInfo {
+            id: self.submission.id.clone(),
+            solution_code: self.submission.solution_code.clone(),
+            main_code: self.submission.main_code.clone(),
+        })?;
+
+
+        let mut results: Vec<InputResult> = vec![];
 
         for input in self.submission.inputs.iter() {
             let build_args = BuildArgs {
@@ -79,15 +82,15 @@ impl Executer {
                 path: path_info.absolute_path.clone(),
                 params: input.args.clone(),
             };
-    
+
             let command = match self.submission.supported_lang() {
-                SupportedLangs::Rust => RustCommand::make_build_command(build_args),
-                SupportedLangs::Javascript => JavascriptCommand::make_build_command(build_args),
-                SupportedLangs::Python => PythonCommand::make_build_command(build_args),
+                SupportedLangs::Rust => DockerRustCommand::make_execute_command(build_args),
+                SupportedLangs::Javascript => DockerJavascriptCommand::make_execute_command(build_args),
+                SupportedLangs::Python => DockerPythonCommand::make_execute_command(build_args),
             };
-    
+
             let output = Command::new(command.0).args(command.1).output();
-    
+
             match output {
                 Ok(result) => {
                     if !result.stderr.is_empty() {
@@ -96,80 +99,24 @@ impl Executer {
                             output: String::from_utf8_lossy(&result.stderr).trim().to_string(),
                             expected_result: input.expected_result.clone(),
                         });
-
-                        continue;
+                    } else {
+                        results.push(InputResult {
+                            input: input.args.clone(),
+                            output: String::from_utf8_lossy(&result.stdout).trim().to_string(),
+                            expected_result: input.expected_result.clone(),
+                        });
                     }
-                    results.push(InputResult {
-                        input: input.args.clone(),
-                        output: String::from_utf8_lossy(&result.stdout).trim().to_string(),
-                        expected_result: input.expected_result.clone(),
-                    });
                 }
-                Err(err) => return Err(ExecutionError::ExecutionError(format!(
-                    "Error on execute code: {err}"
-                ))),
+                Err(err) => {
+                    return Err(ExecutionError::ExecutionError(format!(
+                        "Error on execute code: {err}"
+                    )))
+                }
             }
         }
 
-        self.clean_up()?;
+        lang_adapter.clean_up(path_info)?;
 
         Ok(results)
-    }
-
-    fn setup_files(&self) -> Result<(), ExecutionError> {
-        let path_info = self.path_info();
-
-        let relative_path = path_info.relative_path;
-        let solution_filename = path_info.solution_filename;
-        let main_filename = path_info.main_filename;
-
-        let solution_file_path_str: String = format!("{relative_path}/{solution_filename}");
-        let main_file_path_str = format!("{relative_path}/{main_filename}");
-
-        let solution_file_path = Path::new(&solution_file_path_str);
-        let main_file_path = Path::new(&main_file_path_str);
-
-        if solution_file_path.parent().is_none() {
-            return Err(ExecutionError::ExecutionEnvironmentError(
-                "Path empty".to_string(),
-            ));
-        }
-
-        let parent_path = solution_file_path.parent().unwrap();
-
-        if let Err(err) = fs::create_dir_all(parent_path) {
-            return Err(ExecutionError::ExecutionEnvironmentError(format!(
-                "Error creating folder: {err}"
-            )));
-        }
-
-        if let Err(err) = File::create(solution_file_path)
-            .and_then(|mut file| file.write_all(self.submission.solution_code.as_bytes()))
-        {
-            return Err(ExecutionError::ExecutionEnvironmentError(format!(
-                "Error creating solution directory: {err}"
-            )));
-        }
-
-        if let Err(err) = File::create(main_file_path)
-            .and_then(|mut file| file.write_all(self.submission.main_code.as_bytes()))
-        {
-            return Err(ExecutionError::ExecutionEnvironmentError(format!(
-                "Error creating solution directory: {err}"
-            )));
-        }
-
-        Ok(())
-    }
-
-    fn clean_up(&self) -> Result<(), ExecutionError>{
-        let path_info = self.path_info();
-        let relative_path = path_info.relative_path;
-
-        if let Err(err) = fs::remove_dir_all(Path::new(&relative_path)){
-            return Err(ExecutionError::CleanUpError(format!("{err}")));
-        }
-
-        Ok(())
     }
 }
