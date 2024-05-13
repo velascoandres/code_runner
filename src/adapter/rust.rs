@@ -1,63 +1,37 @@
 use std::{fs::{self, File}, io::Write, path::Path};
+use crate::runner::{errors::ExecutionError, executer::CodePathInfo};
+use super::lang_adapter::{CodeInfo, LangAdapter, RunArgs};
 
-use super::{errors::ExecutionError, executer::CodePathInfo};
-
-pub struct RunArgs {
-    pub id: String,
-    pub path: String,
-    pub params: String,
-}
-
-pub struct CodeInfo {
-    pub id: String,
-    pub solution_code: String,
-    pub main_code: String,
-}
-
-pub trait LangAdapter {
-    fn make_run_command(&self, args: RunArgs) -> (String, Vec<String>);
-    fn setup_environment(&self, path_info: &CodePathInfo, code_info: &CodeInfo) -> Result<(), ExecutionError>;
-
-    fn clean_up(&self, path_info: CodePathInfo) -> Result<(), ExecutionError> {
-        let relative_path = path_info.relative_path;
-
-        if let Err(err) = fs::remove_dir_all(Path::new(&relative_path)) {
-            return Err(ExecutionError::CleanUpError(format!("{err}")));
-        }
-
-        Ok(())
-    }
-}
 
 #[derive(Default)]
-pub struct JavascriptAdapter;
+pub struct RustAdapter;
 
-impl LangAdapter for JavascriptAdapter {
+impl LangAdapter for RustAdapter {
     fn make_run_command(&self, args: RunArgs) -> (String, Vec<String>) {
         let id = args.id;
         let path = args.path;
         let params = args.params;
 
-        let main_js_file = format!("node main.js {params}");
+        let main_command = format!("cargo build && ./target/debug/{id} '{params}'");
         let code_path = format!("{path}:/code");
 
         let args = vec![
             "run",
             "--rm",
             "-m",
-            "64M",
+            "512M",
             "--memory-swap",
-            "64M",
+            "512M",
             "--name",
             &id,
             "-v",
             &code_path,
             "-w",
             "/code",
-            "node:current-alpine3.15",
+            "rust:1.76.0",
             "/bin/sh",
             "-c",
-            &main_js_file,
+            &main_command,
         ]
         .into_iter()
         .map(|arg| arg.to_string())
@@ -71,9 +45,9 @@ impl LangAdapter for JavascriptAdapter {
         let solution_filename = path_info.solution_filename.clone();
         let main_filename = path_info.main_filename.clone();
 
-        let solution_file_path_str: String = format!("{relative_path}/{solution_filename}");
-        let main_file_path_str = format!("{relative_path}/{main_filename}");
-        let package_file_path_srt = format!("{relative_path}/package.json");
+        let solution_file_path_str: String = format!("{relative_path}/src/{solution_filename}");
+        let main_file_path_str = format!("{relative_path}/src/{main_filename}");
+        let package_file_path_srt = format!("{relative_path}/Cargo.toml");
 
         let solution_file_path = Path::new(&solution_file_path_str);
         let main_file_path = Path::new(&main_file_path_str);
@@ -94,7 +68,7 @@ impl LangAdapter for JavascriptAdapter {
             )));
         }
 
-        if let Err(err) = File::create(solution_file_path)
+        if let Err(err) = fs::File::create(solution_file_path)
             .and_then(|mut file| file.write_all(code_info.solution_code.as_bytes()))
         {
             return Err(ExecutionError::ExecutionEnvironmentError(format!(
@@ -110,7 +84,7 @@ impl LangAdapter for JavascriptAdapter {
             )));
         }
 
-        match fs::read_to_string("./code-templates/javascript/package.json")  {
+        match fs::read_to_string("./code-templates/rust/Cargo.toml")  {
             Ok(content) => {
                 let package_content = content.replace("{{id}}", &code_info.id);
 

@@ -1,11 +1,12 @@
+use crate::adapter::lang_adapter::{CodeInfo, LangAdapter, RunArgs};
 use crate::runner::errors::ExecutionError;
 
-use super::lang_adapter::{CodeInfo, LangAdapter};
-use super::langs::{BuildArgs, DockerJavascriptCommand, DockerLangCommand, DockerPythonCommand, DockerRustCommand};
 use super::models::Submission;
 use super::models::{InputResult, SupportedLangs};
+use std::fs;
+use std::io::Write;
 use std::path::Path;
-use std::process::Command;
+use std::process::{Command, Stdio};
 
 #[derive(Debug)]
 pub struct CodePathInfo {
@@ -64,54 +65,62 @@ impl Executer {
         )
     }
 
-    pub fn execute<T: LangAdapter>(&self, lang_adapter: T) -> Result<Vec<InputResult>, ExecutionError> {
+    pub fn execute<T: LangAdapter>(
+        &self,
+        lang_adapter: T,
+    ) -> Result<Vec<InputResult>, ExecutionError> {
         let path_info = self.path_info();
 
-        lang_adapter.setup_environment(&path_info, &CodeInfo {
-            id: self.submission.id.clone(),
-            solution_code: self.submission.solution_code.clone(),
-            main_code: self.submission.main_code.clone(),
-        })?;
-
+        lang_adapter.setup_environment(
+            &path_info,
+            &CodeInfo {
+                id: self.submission.id.clone(),
+                solution_code: self.submission.solution_code.clone(),
+                main_code: self.submission.main_code.clone(),
+            },
+        )?;
 
         let mut results: Vec<InputResult> = vec![];
 
         for input in self.submission.inputs.iter() {
-            let build_args = BuildArgs {
+            let build_args = RunArgs {
                 id: self.submission.id.clone(),
                 path: path_info.absolute_path.clone(),
                 params: input.args.clone(),
             };
 
-            let command = match self.submission.supported_lang() {
-                SupportedLangs::Rust => DockerRustCommand::make_execute_command(build_args),
-                SupportedLangs::Javascript => DockerJavascriptCommand::make_execute_command(build_args),
-                SupportedLangs::Python => DockerPythonCommand::make_execute_command(build_args),
-            };
+            let command = lang_adapter.make_run_command(build_args);
 
-            let output = Command::new(command.0).args(command.1).output();
+            let output_result = Command::new(command.0)
+                .args(command.1)
+                .stdout(Stdio::piped())
+                .stderr(Stdio::piped())
+                .output()
+                .map(|output| {
+                    // println!("{:?}", String::from_utf8_lossy(&output.stdout).trim());
+                    // println!("{:?}", String::from_utf8_lossy(&output.stderr));
 
-            match output {
-                Ok(result) => {
-                    if !result.stderr.is_empty() {
+                    let result = String::from_utf8_lossy(&output.stdout).trim().to_string();
+
+                    if !result.is_empty() {
                         results.push(InputResult {
                             input: input.args.clone(),
-                            output: String::from_utf8_lossy(&result.stderr).trim().to_string(),
+                            output: result,
                             expected_result: input.expected_result.clone(),
                         });
                     } else {
                         results.push(InputResult {
                             input: input.args.clone(),
-                            output: String::from_utf8_lossy(&result.stdout).trim().to_string(),
+                            output: String::from_utf8_lossy(&output.stderr).trim().to_string(),
                             expected_result: input.expected_result.clone(),
                         });
                     }
-                }
-                Err(err) => {
-                    return Err(ExecutionError::ExecutionError(format!(
-                        "Error on execute code: {err}"
-                    )))
-                }
+                });
+
+            if let Err(err) = output_result {
+                return Err(ExecutionError::ExecutionError(format!(
+                    "Error on execute code: {err}"
+                )));
             }
         }
 

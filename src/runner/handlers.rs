@@ -1,7 +1,11 @@
 use actix_web::{post, web, HttpResponse, Responder};
 
-use crate::runner::{
-    executer::Executer, lang_adapter, models::{Submission, SubmissionResponse}
+use crate::{
+    adapter,
+    runner::{
+        executer::Executer,
+        models::{Submission, SubmissionResponse},
+    },
 };
 use validator::Validate;
 
@@ -15,22 +19,24 @@ pub async fn execute_code(json: web::Json<Submission>) -> impl Responder {
         return HttpResponse::BadRequest().json(error);
     }
 
-    let execution_result = Executer::new(json.into_inner()).execute(lang_adapter::JavascriptAdapter);
+    let submission = json.into_inner();
+
+    let execution_result = match submission.supported_lang() {
+        crate::runner::models::SupportedLangs::Rust => Executer::new(submission).execute(adapter::rust::RustAdapter),
+        crate::runner::models::SupportedLangs::Javascript => Executer::new(submission).execute(adapter::javascript::JavascriptAdapter),
+        crate::runner::models::SupportedLangs::Python => Executer::new(submission).execute(adapter::javascript::JavascriptAdapter),
+    };
 
     match execution_result {
-        Ok(output) => {
-            HttpResponse::Ok().json(SubmissionResponse { 
-                is_success: true, 
-                message: "Submission was executed".to_string(),
-                results: output
-            })
-        },
-        Err(err) => {
-            HttpResponse::BadRequest().json(SubmissionResponse { 
-                is_success: false, 
-                message: err.to_string(),
-                results: vec![] 
-            })
-        },
+        Ok(output) => HttpResponse::Ok().json(SubmissionResponse {
+            is_success: true,
+            message: "Submission was executed".to_string(),
+            results: output,
+        }),
+        Err(err) => HttpResponse::BadRequest().json(SubmissionResponse {
+            is_success: false,
+            message: err.to_string(),
+            results: vec![],
+        }),
     }
 }
