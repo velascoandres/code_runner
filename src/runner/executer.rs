@@ -3,8 +3,6 @@ use crate::runner::errors::ExecutionError;
 
 use super::models::Submission;
 use super::models::{InputResult, SupportedLangs};
-use std::fs;
-use std::io::Write;
 use std::path::Path;
 use std::process::{Command, Stdio};
 
@@ -97,9 +95,6 @@ impl Executer {
                 .stderr(Stdio::piped())
                 .output()
                 .map(|output| {
-                    // println!("{:?}", String::from_utf8_lossy(&output.stdout).trim());
-                    // println!("{:?}", String::from_utf8_lossy(&output.stderr));
-
                     let result = String::from_utf8_lossy(&output.stdout).trim().to_string();
 
                     if !result.is_empty() {
