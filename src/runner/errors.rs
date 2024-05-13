@@ -5,5 +5,5 @@ pub enum ExecutionError {
     RuntimeError(String),
     ExecutionError(String),
     ExecutionEnvironmentError(String),
-    CleanUpError(String)
+    CleanUpError(String),
 }

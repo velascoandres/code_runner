@@ -8,36 +8,35 @@ use validator::{Validate, ValidationError};
 pub enum SupportedLangs {
     Rust,
     Javascript,
-    Python
+    Python,
 }
 
 fn validate_supported_lang(supported_lang: &str) -> Result<(), ValidationError> {
     match SupportedLangs::from_str(supported_lang) {
         Ok(_) => Ok(()),
-        _ => Err(ValidationError::new("invalid lang"))
+        _ => Err(ValidationError::new("invalid lang")),
     }
 }
-
 
 #[derive(Deserialize, Debug, Serialize, Validate)]
 pub struct Input {
     #[validate(length(min = 1, message = "args must be greater or equal than 1 chars"))]
     pub args: String,
-    #[validate(length(min=1))]
-    pub expected_result: String
+    #[validate(length(min = 1))]
+    pub expected_result: String,
 }
 
 #[derive(Deserialize, Debug, Serialize)]
 pub struct InputResult {
     pub input: String,
     pub output: String,
-    pub expected_result: String
+    pub expected_result: String,
 }
 
 #[derive(Deserialize, Debug, Serialize)]
 pub struct Entry {
     input: String,
-    output: String
+    output: String,
 }
 
 #[derive(Debug, Serialize, Validate, Deserialize)]
@@ -60,11 +59,9 @@ impl Submission {
     }
 }
 
-
 #[derive(Deserialize, Debug, Serialize)]
 pub struct SubmissionResponse {
     pub is_success: bool,
     pub message: String,
-    pub results: Vec<InputResult>
+    pub results: Vec<InputResult>,
 }
-

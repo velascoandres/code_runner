@@ -1,7 +1,10 @@
-use std::{fs::{self, File}, io::Write, path::Path};
-use crate::runner::{errors::ExecutionError, executer::CodePathInfo};
 use super::lang_adapter::{CodeInfo, LangAdapter, RunArgs};
-
+use crate::runner::{errors::ExecutionError, executer::CodePathInfo};
+use std::{
+    fs::{self, File},
+    io::Write,
+    path::Path,
+};
 
 #[derive(Default)]
 pub struct JavascriptAdapter;
@@ -40,7 +43,11 @@ impl LangAdapter for JavascriptAdapter {
         ("docker".to_string(), args)
     }
 
-    fn setup_environment(&self, path_info: &CodePathInfo, code_info: &CodeInfo) -> Result<(), ExecutionError> {
+    fn setup_environment(
+        &self,
+        path_info: &CodePathInfo,
+        code_info: &CodeInfo,
+    ) -> Result<(), ExecutionError> {
         let relative_path = path_info.relative_path.clone();
         let solution_filename = path_info.solution_filename.clone();
         let main_filename = path_info.main_filename.clone();
@@ -52,7 +59,6 @@ impl LangAdapter for JavascriptAdapter {
         let solution_file_path = Path::new(&solution_file_path_str);
         let main_file_path = Path::new(&main_file_path_str);
         let package_file_path = Path::new(&package_file_path_srt);
-
 
         if solution_file_path.parent().is_none() {
             return Err(ExecutionError::ExecutionEnvironmentError(
@@ -84,17 +90,19 @@ impl LangAdapter for JavascriptAdapter {
             )));
         }
 
-        match fs::read_to_string("./code-templates/javascript/package.json")  {
+        match fs::read_to_string("./code-templates/javascript/package.json") {
             Ok(content) => {
                 let package_content = content.replace("{{id}}", &code_info.id);
 
-                match File::create(package_file_path).and_then(|mut file| file.write_all(package_content.as_bytes())) {
+                match File::create(package_file_path)
+                    .and_then(|mut file| file.write_all(package_content.as_bytes()))
+                {
                     Ok(_) => Ok(()),
                     Err(err) => Err(ExecutionError::ExecutionEnvironmentError(format!(
                         "Error creating package file: {err}"
                     ))),
                 }
-            },
+            }
             Err(err) => Err(ExecutionError::ExecutionEnvironmentError(format!(
                 "Error creating solution directory: {err}"
             ))),

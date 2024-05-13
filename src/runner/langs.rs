@@ -17,7 +17,6 @@ pub struct DockerRustCommand;
 
 pub struct DockerPythonCommand;
 
-
 impl DockerLangCommand for DockerJavascriptCommand {
     fn make_execute_command(args: BuildArgs) -> (String, Vec<String>) {
         let id = args.id;

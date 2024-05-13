@@ -16,7 +16,11 @@ pub struct CodeInfo {
 
 pub trait LangAdapter {
     fn make_run_command(&self, args: RunArgs) -> (String, Vec<String>);
-    fn setup_environment(&self, path_info: &CodePathInfo, code_info: &CodeInfo) -> Result<(), ExecutionError>;
+    fn setup_environment(
+        &self,
+        path_info: &CodePathInfo,
+        code_info: &CodeInfo,
+    ) -> Result<(), ExecutionError>;
 
     fn clean_up(&self, path_info: CodePathInfo) -> Result<(), ExecutionError> {
         let relative_path = path_info.relative_path;

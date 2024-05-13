@@ -22,9 +22,15 @@ pub async fn execute_code(json: web::Json<Submission>) -> impl Responder {
     let submission = json.into_inner();
 
     let execution_result = match submission.supported_lang() {
-        crate::runner::models::SupportedLangs::Rust => Executer::new(submission).execute(adapter::rust::RustAdapter),
-        crate::runner::models::SupportedLangs::Javascript => Executer::new(submission).execute(adapter::javascript::JavascriptAdapter),
-        crate::runner::models::SupportedLangs::Python => Executer::new(submission).execute(adapter::javascript::JavascriptAdapter),
+        crate::runner::models::SupportedLangs::Rust => {
+            Executer::new(submission).execute(adapter::rust::RustAdapter)
+        }
+        crate::runner::models::SupportedLangs::Javascript => {
+            Executer::new(submission).execute(adapter::javascript::JavascriptAdapter)
+        }
+        crate::runner::models::SupportedLangs::Python => {
+            Executer::new(submission).execute(adapter::javascript::JavascriptAdapter)
+        }
     };
 
     match execution_result {
