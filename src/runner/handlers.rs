@@ -29,7 +29,7 @@ pub async fn execute_code(json: web::Json<Submission>) -> impl Responder {
             Executer::new(submission).execute(adapter::javascript::JavascriptAdapter)
         }
         crate::runner::models::SupportedLangs::Python => {
-            Executer::new(submission).execute(adapter::javascript::JavascriptAdapter)
+            Executer::new(submission).execute(adapter::python::PythonAdapter)
         }
     };
 
